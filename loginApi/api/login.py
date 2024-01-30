@@ -13,22 +13,16 @@ class LoginAPI(Resource):
         if login:
             return login.to_dict()
         return {"message": "not found"}, 404
-
+    
     def post(self):
         parser = reqparse.RequestParser()
-        
         parser.add_argument("username", required=True, type=str)
         parser.add_argument("password", required=True, type=str)
         args = parser.parse_args()
-        login = Login(args["username"], args["password"])
-
-        try:
-            db.session.add(login)
-            db.session.commit()
-            return login.to_dict(), 201
-        except Exception as exception:
-            db.session.rollback()
-            return {"message":f"error {exception}"}, 500
+        login = db.session.query(Login).filter_by(_username = args["username"], _password =args["password"]).first()
+        if login:
+            return login.to_dict()
+        return {"message": "not found"}, 404
 
     def put(self):
         parser = reqparse.RequestParser()
@@ -69,6 +63,48 @@ class LoginAPI(Resource):
             db.session.rollback()
             return {"message": f"error {exception}"}, 500
 
+class signUpAPI(Resource):
+    
+    def post(self):
+        parser = reqparse.RequestParser()
+        
+        parser.add_argument("username", required=True, type=str)
+        parser.add_argument("password", required=True, type=str)
+        args = parser.parse_args()
+        login = Login(args["username"], args["password"])
+
+        try:
+            db.session.add(login)
+            db.session.commit()
+            return login.to_dict(), 201
+        except Exception as exception:
+            db.session.rollback()
+            return {"message":f"error {exception}"}, 500
+        
+class authenticateAPI(Resource):
+    
+ def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("id", required=True, type=int)
+        parser.add_argument("username")
+        parser.add_argument("password")
+        args = parser.parse_args()
+        
+        try:
+            login = db.session.query(Login).get(args["id"])
+            if login:
+                if args["username"] is not None:
+                    login.username = args["username"]
+                if args["password"] is not None:
+                    login.password = args["password"]
+                db.session.commit()
+                return login.to_dict(), 200
+            else:
+                return {"message": "not found"}, 404
+        except Exception as exception:
+            db.session.rollback()
+            return {"message": f"error {exception}"}, 500
+        
 class LoginListAPI(Resource):
     def get(self):
         login = db.session.query(Login).all()
@@ -84,4 +120,6 @@ class LoginListAPI(Resource):
             return {"message": f"error {exception}"}
 
 loginApi.add_resource(LoginAPI, "/login")
+loginApi.add_resource(signUpAPI, "/signUp")
+loginApi.add_resource(authenticateAPI, "/authenticate")
 loginApi.add_resource(LoginListAPI, "/loginList")
